@@ -1,0 +1,13 @@
+# syntax=docker/dockerfile:1.7
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm install --prefer-offline --no-audit --progress=false || true
+COPY . .
+RUN npm run build --if-present
+
+FROM nginx:1.25-alpine
+COPY --from=build /app/dist/app /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

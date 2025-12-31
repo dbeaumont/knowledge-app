@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: rag-service
+  jackson:
+    serialization:
+      indent_output: true
+  main:
+    web-application-type: reactive
+
+llm:
+  model: ${OLLAMA_MODEL:llama3}
+  base-url: ${OLLAMA_BASE_URL:http://ollama:11434}
+  temperature: 0.2
+
+qdrant:
+  url: ${QDRANT_URL:http://qdrant:6333}
+  collection: knowledge-base
+
+server:
+  port: 8080
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:change-me}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"

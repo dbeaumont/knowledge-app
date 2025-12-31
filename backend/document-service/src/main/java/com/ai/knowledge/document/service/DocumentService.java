@@ -1,0 +1,46 @@
+package com.ai.knowledge.document.service;
+
+import com.ai.knowledge.document.api.DocumentMapper;
+import com.ai.knowledge.document.api.DocumentRequest;
+import com.ai.knowledge.document.api.DocumentResponse;
+import com.ai.knowledge.document.domain.DocumentRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+
+@Service
+public class DocumentService {
+
+    private final DocumentRepository repository;
+    private final DocumentMapper mapper;
+
+    public DocumentService(DocumentRepository repository, DocumentMapper mapper) {
+        this.repository = repository;
+        this.mapper = mapper;
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentResponse> list(Authentication authentication) {
+        String ownerId = authentication.getName();
+        return repository.findByOwnerId(ownerId).stream().map(mapper::toResponse).toList();
+    }
+
+    @Transactional
+    public DocumentResponse create(DocumentRequest request, Authentication authentication) {
+        String ownerId = authentication.getName();
+        var entity = mapper.toEntity(request, ownerId);
+        var saved = repository.save(entity);
+        return mapper.toResponse(saved);
+    }
+
+    @Transactional
+    public void markIndexed(UUID id, String status) {
+        repository.findById(id).ifPresent(doc -> {
+            doc.setStatus(status);
+            repository.save(doc);
+        });
+    }
+}

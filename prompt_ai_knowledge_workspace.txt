@@ -1,0 +1,79 @@
+Je veux que tu génères un projet complet de niveau entreprise en microservices, basé sur les technologies suivantes :
+
+- Frontend : Angular
+- Backend : Java / Spring Boot
+- Orchestration : Docker Compose
+- LLM local : Ollama
+- Vector database : Qdrant
+- Base relationnelle : PostgreSQL
+- Machine cible : MacBook Pro M1 (ARM64)
+- Niveau d’exigence : expert / production-ready
+
+1. Contexte du projet
+Le projet est une application appelée « AI Knowledge Workspace » permettant :
+- d’interroger un LLM local
+- d’exécuter du RAG (Retrieval Augmented Generation)
+- d’ingérer et indexer des documents internes
+- de discuter via une interface de chat
+- d’afficher les sources utilisées par les réponses
+- de gérer des utilisateurs et des rôles
+- d’héberger l’ensemble localement via Docker
+Aucune dépendance cloud : tout doit fonctionner en local, offline.
+
+2. Architecture microservices à produire
+Génère les microservices suivants :
+- API Gateway / BFF (Spring Cloud Gateway, JWT propagation, CORS)
+- RAG Service (pipeline RAG complet avec Ollama + Qdrant, mémoire conversationnelle)
+- Document Service (gestion et indexation documents, PostgreSQL)
+- User Service optionnel (utilisateurs, préférences, historique)
+
+3. Technologies backend obligatoires
+- Java 21+, Spring Boot 3.x/4.x
+- Spring Security JWT
+- Spring AI ou WebClient custom pour Ollama
+- Spring Data JPA, PostgreSQL, Testcontainers
+- Validation Jakarta, erreurs RFC7807, DTO + MapStruct
+
+4. Frontend Angular
+- Angular 18+, feature modules
+- services HttpClient via API Gateway
+- interceptors JWT
+- module Chat (historique, streaming si possible, sources citées)
+- module Documents (upload, liste, indexation)
+- UI Material ou Tailwind
+
+5. Ollama
+- conteneur ARM64
+- modèles : llama3, mistral, qwen
+- chat completions + embeddings
+
+6. Qdrant
+- déploiement Docker ARM64
+- collections gérées automatiquement
+
+7. Docker et orchestration
+- docker-compose avec profiles dev/prod/gpu
+- secrets Docker, volumes, networks
+- Dockerfiles multi-stage pour chaque service et frontend
+- BuildKit + cache npm/maven + images minces
+
+8. Sécurité
+- JWT signé via secret Docker
+- rôles USER et ADMIN
+- filtrage par utilisateur
+
+9. Qualité / entreprise
+- architecture hexagonale / clean
+- logs JSON
+- OpenAPI 3
+- tests unitaires et d’intégration
+- README détaillé
+- configuration externalisée
+
+10. Attendus
+- repo multi-modules complet
+- code Angular + Spring
+- configuration Docker
+- exemples d’API et de prompts RAG
+- instructions Mac M1
+- exécutable avec : docker compose up --build

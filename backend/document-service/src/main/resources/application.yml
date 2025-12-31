@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: document-service
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:postgres}:${POSTGRES_PORT:5432}/${POSTGRES_DB:knowledge}
+    username: ${POSTGRES_USER:knowledge}
+    password: ${POSTGRES_PASSWORD:knowledge}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.lob.non_contextual_creation: true
+  jackson:
+    serialization:
+      indent_output: true
+
+server:
+  port: 8080
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:change-me}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"
