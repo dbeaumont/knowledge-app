@@ -1,13 +1,17 @@
 PROFILE ?= dev
 BUILD_FLAGS ?=
-COMPOSE ?= docker compose
-COMPOSE_CMD = DOCKER_BUILDKIT=1 $(COMPOSE) $(if $(PROFILE),--profile $(PROFILE))
+COMPOSE_CMD = DOCKER_BUILDKIT=1 docker compose $(if $(PROFILE),--profile $(PROFILE))
 
-.PHONY: help env up build rebuild down all logs clean ps prune
+# BuildKit est le moteur de build moderne de Docker. Il parallélise les étapes, met en cache 
+# plus finement (y compris sur plusieurs architectures), supporte les secrets et mounts temporaires 
+# pendant le build, et produit des images plus rapidement et de façon reproductible par rapport à 
+# l’ancien backend docker build. On l’active via DOCKER_BUILDKIT=1 ou dans la config Docker.
+
+.PHONY: help env up build down all logs clean ps prune
 
 help:
-	@echo "Usage: make [target] PROFILE=dev|prod|gpu"
-	@echo "Targets: env, build, rebuild, up, down, clean, logs, ps, prune"
+	@echo "Usage : make [target] PROFILE=dev|prod|gpu BUILD_FLAGS=--no-cache"
+	@echo "Targets: env, build, up, down, clean, logs, ps, prune"
 
 env:
 	@test -f .env || cp env.template .env
@@ -15,22 +19,19 @@ env:
 build: env
 	$(COMPOSE_CMD) build $(BUILD_FLAGS)
 
-rebuild: env
-	$(COMPOSE_CMD) build --no-cache $(BUILD_FLAGS)
-
 up: env
-	$(COMPOSE_CMD) up --build -d
+	$(COMPOSE_CMD) up -d
 
-down: env
+all: env clean build up
+
+down:
 	$(COMPOSE_CMD) down
-
-all: env clean up
-
-logs:
-	$(COMPOSE_CMD) logs -f
 
 clean:
 	$(COMPOSE_CMD) down -v --remove-orphans
+
+logs:
+	$(COMPOSE_CMD) logs -f
 
 ps:
 	while true; do clear; $(COMPOSE_CMD) ps; sleep 3; done

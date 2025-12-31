@@ -4,6 +4,8 @@ services:
       context: ./backend
       dockerfile: ./gateway/Dockerfile
     image: ai-knowledge/gateway:latest
+    networks:
+      - knowledge-net
     depends_on:
       - rag-service
       - document-service
@@ -24,6 +26,8 @@ services:
       context: ./backend
       dockerfile: ./rag-service/Dockerfile
     image: ai-knowledge/rag-service:latest
+    networks:
+      - knowledge-net
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_MODEL=llama3
@@ -41,6 +45,8 @@ services:
       context: ./backend
       dockerfile: ./document-service/Dockerfile
     image: ai-knowledge/document-service:latest
+    networks:
+      - knowledge-net
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
@@ -59,6 +65,8 @@ services:
       context: ./backend
       dockerfile: ./user-service/Dockerfile
     image: ai-knowledge/user-service:latest
+    networks:
+      - knowledge-net
     environment:
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
     secrets:
@@ -74,10 +82,14 @@ services:
       - gateway
     ports:
       - "4200:80"
+    networks:
+      - knowledge-net
     profiles: [dev, prod]
 
   postgres:
     image: postgres:16-alpine
+    networks:
+      - knowledge-net
     environment:
       - POSTGRES_USER=knowledge
       - POSTGRES_PASSWORD=knowledge
@@ -94,6 +106,8 @@ services:
       - qdrant-data:/qdrant/storage
     ports:
       - "6333:6333"
+    networks:
+      - knowledge-net
     profiles: [dev, prod, gpu]
 
   ollama:
@@ -102,12 +116,18 @@ services:
       - ollama:/root/.ollama
     ports:
       - "11434:11434"
+    networks:
+      - knowledge-net
     profiles: [dev, gpu]
 
 volumes:
   pgdata:
   qdrant-data:
   ollama:
+
+networks:
+  knowledge-net:
+    driver: bridge
 
 secrets:
   jwt_secret:

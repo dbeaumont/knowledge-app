@@ -76,8 +76,44 @@ cd frontend && npm install && npm run build
 docker compose down -v
 ```
 
+## Diagramme des conteneurs (Docker Compose)
+```mermaid
+flowchart LR
+  user((Utilisateur))
+  subgraph Infra
+    postgres[(PostgreSQL)]
+    qdrant[(Qdrant)]
+    ollama[(Ollama)]
+  end
+
+  gateway -->|REST/JWT| user-service
+  gateway -->|REST| document-service
+  gateway -->|REST| rag-service
+  user --> frontend
+  frontend-->|Proxy /api| gateway
+
+  document-service --> postgres
+  rag-service --> qdrant
+  rag-service --> ollama
+
+  classDef svc fill:#0f172a,stroke:#1f2937,stroke-width:1px,color:#f8fafc;
+  class frontend,gateway,rag-service,document-service,user-service svc;
+
+  frontend{{Frontend Nginx/Angular proxy /api}}
+  gateway{{Gateway}}
+  rag-service{{RAG Service}}
+  document-service{{Document Service}}
+  user-service{{User Service}}
+```
+
 ## Points de personnalisation
 - Remplacer le secret JWT et durée (`user-service` -> `JwtService`)
 - Ajouter persistance utilisateurs + rôles en DB
 - Ajout upload binaire + pipeline chunking/embedding dans `document-service`
 - Ajouter vérification GPU à `docker-compose.yml` (devices pour ollama)
+
+
+## Tips
+
+### Buildkit
+BuildKit est le moteur de build moderne de Docker. Il parallélise les étapes, met en cache plus finement (y compris sur plusieurs architectures), supporte les secrets et mounts temporaires pendant le build, et produit des images plus rapidement et de façon reproductible par rapport à l’ancien backend docker build. On l’active via DOCKER_BUILDKIT=1 ou dans la config Docker.

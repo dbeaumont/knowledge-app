@@ -6,6 +6,9 @@ spring:
       indent_output: true
   main:
     web-application-type: reactive
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration
 
 llm:
   model: ${OLLAMA_MODEL:llama3}
