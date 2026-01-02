@@ -26,6 +26,7 @@ public class GatewaySecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
+                        .pathMatchers("/api/auth/**").permitAll()
                         .pathMatchers("/actuator/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtDecoder(jwtDecoder())));

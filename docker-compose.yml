@@ -120,6 +120,13 @@ services:
       - knowledge-net
     profiles: [dev, gpu]
 
+  toolbox:
+    image: curlimages/curl:latest
+    command: ["sleep", "infinity"]
+    networks:
+      - knowledge-net
+    profiles: [dev]
+
 volumes:
   pgdata:
   qdrant-data:

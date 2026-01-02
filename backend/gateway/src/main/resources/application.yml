@@ -10,7 +10,7 @@ spring:
       globalcors:
         corsConfigurations:
           '[/**]':
-            allowedOrigins: "*"
+            allowedOriginPatterns: "*"
             allowedMethods: "GET,POST,PUT,DELETE,OPTIONS"
             allowedHeaders: "*"
             allowCredentials: true
@@ -30,7 +30,7 @@ services:
 
 security:
   jwt:
-    secret: ${JWT_SECRET:change-me}
+    secret: ${JWT_SECRET:0123456789abcdef0123456789abcdef}
 
 server:
   port: 8080

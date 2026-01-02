@@ -1,23 +1,27 @@
-PROFILE ?= dev
-BUILD_FLAGS ?=
-COMPOSE_CMD = DOCKER_BUILDKIT=1 docker compose $(if $(PROFILE),--profile $(PROFILE))
+COMPOSE        ?= docker compose
+PROFILE        ?= dev
+BUILD          ?=
+BUILD_FLAGS    ?=
+DEBUG          ?=
 
-# BuildKit est le moteur de build moderne de Docker. Il parallélise les étapes, met en cache 
-# plus finement (y compris sur plusieurs architectures), supporte les secrets et mounts temporaires 
-# pendant le build, et produit des images plus rapidement et de façon reproductible par rapport à 
-# l’ancien backend docker build. On l’active via DOCKER_BUILDKIT=1 ou dans la config Docker.
+DOCKER_BUILDKIT ?= 1
+COMPOSE_CMD     := $(if $(DEBUG),DEBUG=$(DEBUG) ,) DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) $(COMPOSE) $(if $(PROFILE),--profile $(PROFILE))
 
 .PHONY: help env up build down all logs clean ps prune
 
 help:
-	@echo "Usage : make [target] PROFILE=dev|prod|gpu BUILD_FLAGS=--no-cache"
-	@echo "Targets: env, build, up, down, clean, logs, ps, prune"
+	@echo "Usage : make [target] PROFILE=dev|prod|gpu [BUILD=service] [BUILD_FLAGS=--no-cache] [DEBUG=true|false]"
+	@echo "targets : env, build, up, down, clean, logs, ps, prune"
+	@echo "service : rag-service | document-service | gateway | frontend | (empty=all)"
+	@echo "Examples:"
+	@echo "make clean up PROFILE=dev"
+	@echo "make build BUILD=gateway BUILD_FLAGS=--no-cache PROFILE=dev"
 
 env:
 	@test -f .env || cp env.template .env
 
 build: env
-	$(COMPOSE_CMD) build $(BUILD_FLAGS)
+	$(COMPOSE_CMD) build $(BUILD_FLAGS) $(BUILD)
 
 up: env
 	$(COMPOSE_CMD) up -d

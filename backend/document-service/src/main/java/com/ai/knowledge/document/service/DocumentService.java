@@ -15,10 +15,12 @@ import java.util.UUID;
 public class DocumentService {
 
     private final DocumentRepository repository;
+    private final DocumentIngestionClient ingestionClient;
     private final DocumentMapper mapper;
 
-    public DocumentService(DocumentRepository repository, DocumentMapper mapper) {
+    public DocumentService(DocumentRepository repository, DocumentIngestionClient ingestionClient, DocumentMapper mapper) {
         this.repository = repository;
+        this.ingestionClient = ingestionClient;
         this.mapper = mapper;
     }
 
@@ -33,6 +35,7 @@ public class DocumentService {
         String ownerId = authentication.getName();
         var entity = mapper.toEntity(request, ownerId);
         var saved = repository.save(entity);
+        ingestionClient.ingest(saved);
         return mapper.toResponse(saved);
     }
 

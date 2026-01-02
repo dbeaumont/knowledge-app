@@ -1,5 +1,5 @@
 # Build stage
-FROM maven:3.9-eclipse-temurin-25 AS build
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY pom.xml pom.xml
 COPY gateway/pom.xml gateway/pom.xml
@@ -11,7 +11,7 @@ RUN mvn -e -DskipTests -f gateway/pom.xml package
 #RUN --mount=type=cache,target=/root/.m2 mvn -pl gateway -am -DskipTests package
 
 # Runtime stage
-FROM eclipse-temurin:25-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 ENV JAVA_OPTS=""
 WORKDIR /app
 COPY --from=build /app/gateway/target/gateway-*.jar app.jar

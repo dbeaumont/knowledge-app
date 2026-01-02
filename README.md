@@ -3,12 +3,14 @@
 Ensemble microservices complet (Gateway, RAG, Documents, Users) + frontend Angular pour interroger un LLM local (Ollama), exécuter du RAG avec Qdrant, gérer des documents et des utilisateurs. Ciblé MacBook Pro M1 (ARM64), full offline.
 
 ## Stack
-- Java 25 / Spring Boot 4.0.0, Spring Security JWT, Spring Cloud Gateway
+- Java 21 / Spring Boot 3.3.4, Spring Security JWT, Spring Cloud 2023.0.x (Gateway), Spring AI
 - RAG: Ollama (llama3/mistral/qwen), Qdrant vector DB
 - Data: PostgreSQL (documents), JPA + MapStruct
 - Frontend: Angular 18, Material-ready, JWT interceptor
 - Tests: Testcontainers (PostgreSQL) prêts dans le POM
 - Orchestration: Docker Compose (profils `dev`/`prod`/`gpu`), secrets Docker, volumes, réseaux privés
+  
+Note : la version la plus récente de Spring AI ne supporte que Spring Boot 3.3.x et Spring Cloud 2023.0.x
 
 ## Arborescence
 - `frontend/` Angular 18 (Chat, Documents, Profil) + Dockerfile (Nginx)
@@ -23,7 +25,7 @@ Ensemble microservices complet (Gateway, RAG, Documents, Users) + frontend Angul
 ## Prérequis Mac M1
 - Docker Desktop (BuildKit activé) + ~12GB RAM pour modèles
 - Ollama installé (local) si usage hors Docker, sinon conteneur `ollama/ollama` ARM64
-- JDK 25 + Maven 3.9 si build hors Docker
+- JDK 21 + Maven 3.9 si build hors Docker
 - Node 20 si build frontend hors Docker
 
 ## Démarrage rapide
@@ -64,6 +66,7 @@ cd frontend && npm install && npm run build
 - Config Ollama: `rag-service/src/main/resources/application.yml` (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`)
 - Config Qdrant: `QDRANT_URL`, collection `knowledge-base`
 - Implémentation actuelle du RAG est un placeholder ; brancher votre pipeline (Spring AI ou client Qdrant) dans `rag-service/src/main/java/com/ai/knowledge/rag/service/RagService.java`.
+- `rag-service` utilise Spring AI (starter Ollama) sur Spring Boot 3.3.x.
 
 ## Qualité & extensions
 - Hexa: séparer API/service/domain (ex: `document-service`)
@@ -117,3 +120,28 @@ flowchart LR
 
 ### Buildkit
 BuildKit est le moteur de build moderne de Docker. Il parallélise les étapes, met en cache plus finement (y compris sur plusieurs architectures), supporte les secrets et mounts temporaires pendant le build, et produit des images plus rapidement et de façon reproductible par rapport à l’ancien backend docker build. On l’active via DOCKER_BUILDKIT=1 ou dans la config Docker.
+
+### Test
+
+Login depuis le host, en passant par la gateway :
+```bash
+curl -v -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' http://localhost:8080/api/auth/login
+```
+
+Login depuis le réseau interne docker compose : 
+```bash
+docker compose exec toolbox curl -v -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' http://user-service:8080/api/auth/login
+```
+
+Créer un document :
+```bash
+# 1. Obtenir un token
+TOKEN=$(curl -s -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' \
+  http://localhost:8080/api/auth/login | jq -r .token)
+
+# 2. Créer un document
+curl -v -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"Mon doc","description":"Test"}' \
+  http://localhost:8080/api/documents
+```

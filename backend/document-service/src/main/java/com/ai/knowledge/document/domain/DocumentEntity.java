@@ -21,6 +21,9 @@ public class DocumentEntity {
     @Column(length = 8192)
     private String description;
 
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
     @Column(nullable = false)
     private String status;
 
@@ -38,6 +41,9 @@ public class DocumentEntity {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
