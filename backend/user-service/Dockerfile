@@ -17,5 +17,6 @@ WORKDIR /app
 COPY --from=build /app/user-service/target/user-service-*.jar app.jar
 COPY user-service/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+RUN apk add --no-cache curl
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]

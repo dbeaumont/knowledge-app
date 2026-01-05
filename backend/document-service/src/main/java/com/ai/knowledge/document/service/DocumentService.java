@@ -7,6 +7,8 @@ import com.ai.knowledge.document.domain.DocumentRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.UUID;
@@ -35,7 +37,13 @@ public class DocumentService {
         String ownerId = authentication.getName();
         var entity = mapper.toEntity(request, ownerId);
         var saved = repository.save(entity);
-        ingestionClient.ingest(saved);
+        // Ingestion HTTP vers rag-service déclenchée après commit pour libérer la connexion DB rapidement
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                ingestionClient.ingest(saved);
+            }
+        });
         return mapper.toResponse(saved);
     }
 

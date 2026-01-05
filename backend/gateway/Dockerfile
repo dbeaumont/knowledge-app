@@ -17,5 +17,6 @@ WORKDIR /app
 COPY --from=build /app/gateway/target/gateway-*.jar app.jar
 COPY gateway/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+RUN apk add --no-cache curl
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]

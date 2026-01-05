@@ -3,7 +3,7 @@
 Ensemble microservices complet (Gateway, RAG, Documents, Users) + frontend Angular pour interroger un LLM local (Ollama), exécuter du RAG avec Qdrant, gérer des documents et des utilisateurs. Ciblé MacBook Pro M1 (ARM64), full offline.
 
 ## Stack
-- Java 21 / Spring Boot 3.3.4, Spring Security JWT, Spring Cloud 2023.0.x (Gateway), Spring AI
+- Java 21 / Spring Boot 3.3.4, Spring Security JWT, Spring Cloud 2023.0.x (Gateway), Spring AI (Ollama starter)
 - RAG: Ollama (llama3/mistral/qwen), Qdrant vector DB
 - Data: PostgreSQL (documents), JPA + MapStruct
 - Frontend: Angular 18, Material-ready, JWT interceptor
@@ -33,8 +33,11 @@ Note : la version la plus récente de Spring AI ne supporte que Spring Boot 3.3.
 # 1) secret JWT
 cp docker/secrets/jwt_secret.example docker/secrets/jwt_secret
 
-# 2) build & run (profil dev)
-DOCKER_BUILDKIT=1 docker compose --profile dev up --build
+# 2) pull model
+make pull-model MODEL=llama3.1:8b
+
+# 3) build & run (profil dev)
+make build up
 
 # Frontend : http://localhost:4200
 # Gateway : http://localhost:8080
@@ -53,8 +56,8 @@ DOCKER_BUILDKIT=1 docker compose --profile dev up --build
 
 ## API (exemples)
 - Auth: `POST /api/auth/login` -> `{ token, username }`
-- Docs: `GET /api/documents`, `POST /api/documents {name,description}`
-- RAG: `POST /api/rag/answer {query}` (renvoie `RagResponse`), streaming SSE `/api/rag/query`
+- Docs: `GET /api/documents`, `POST /api/documents {name,description,content}` (contient le texte à indexer)
+- RAG: `POST /api/rag/answer {query}` (Ollama via Spring AI, utilise le contexte des documents ingérés), streaming SSE `/api/rag/query`
 
 ## Build locaux (sans Docker)
 ```bash
@@ -64,8 +67,8 @@ cd frontend && npm install && npm run build
 
 ## Adaptations RAG/Vector
 - Config Ollama: `rag-service/src/main/resources/application.yml` (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`)
-- Config Qdrant: `QDRANT_URL`, collection `knowledge-base`
-- Implémentation actuelle du RAG est un placeholder ; brancher votre pipeline (Spring AI ou client Qdrant) dans `rag-service/src/main/java/com/ai/knowledge/rag/service/RagService.java`.
+- Modèle par défaut `llama3.1:8b` (à tirer avec `ollama pull llama3.1:8b` ou override via `OLLAMA_MODEL`).
+- Les documents envoyés avec un champ `content` sont transmis à `rag-service` pour être stockés en mémoire et utilisés dans le prompt. (Exemple minimal sans Qdrant).
 - `rag-service` utilise Spring AI (starter Ollama) sur Spring Boot 3.3.x.
 
 ## Qualité & extensions
@@ -133,15 +136,24 @@ Login depuis le réseau interne docker compose :
 docker compose exec toolbox curl -v -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' http://user-service:8080/api/auth/login
 ```
 
-Créer un document :
+Créer un document avec contenu (sera envoyé à rag-service pour ingestion) :
 ```bash
-# 1. Obtenir un token
 TOKEN=$(curl -s -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}' \
   http://localhost:8080/api/auth/login | jq -r .token)
 
-# 2. Créer un document
 curl -v -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"name":"Mon doc","description":"Test"}' \
+  -d '{"name":"Mon doc","description":"Test","content":"Ceci est un texte à utiliser comme contexte."}' \
   http://localhost:8080/api/documents
 ```
+
+Poser une question (le prompt inclura le contenu ingéré) :
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"query":"Que dit le document ?"}' \
+  http://localhost:8080/api/rag/answer | jq
+```
+
+### Utilisation UI
+- Onglet “Documents” : saisissez Nom/Description, glissez/déposez un fichier texte (ou cliquez pour choisir) ou collez du texte dans la zone prévue, puis cliquez sur “Ajouter”. Le contenu est envoyé et ingéré par le rag-service.
+- Onglet “Chat” : posez une question, les réponses utilisent le contexte des documents ingérés.

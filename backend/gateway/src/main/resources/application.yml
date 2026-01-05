@@ -14,11 +14,16 @@ spring:
             allowedMethods: "GET,POST,PUT,DELETE,OPTIONS"
             allowedHeaders: "*"
             allowCredentials: true
+      httpclient:
+        connect-timeout: 10000       # en ms
+        response-timeout: 600s      # durée max d’attente de la réponse      
   security:
     oauth2:
       resourceserver:
         jwt:
           jwk-set-uri: http://dummy
+  codec:
+    max-in-memory-size: 10MB
 
 services:
   rag:

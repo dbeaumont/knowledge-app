@@ -18,7 +18,7 @@ export class DocumentsService {
     return this.http.get<DocumentItem[]>(`/api/documents`);
   }
 
-  create(payload: { name: string; description?: string }): Observable<DocumentItem> {
+  create(payload: { name: string; description?: string; content?: string }): Observable<DocumentItem> {
     return this.http.post<DocumentItem>(`/api/documents`, payload);
   }
 }

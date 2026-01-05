@@ -17,5 +17,6 @@ WORKDIR /app
 COPY --from=build /app/rag-service/target/rag-service-*.jar app.jar
 COPY rag-service/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+RUN apk add --no-cache curl
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]

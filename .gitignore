@@ -46,6 +46,7 @@ docker-compose.override.yml
 .env
 .env.dev
 .certs/
+.ollama/
 
 # =========================
 # Logs & Temp

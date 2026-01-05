@@ -4,15 +4,21 @@ spring:
   jackson:
     serialization:
       indent_output: true
-
-llm:
-  model: ${OLLAMA_MODEL:llama3}
-  base-url: ${OLLAMA_BASE_URL:http://ollama:11434}
-  temperature: 0.2
-
-qdrant:
-  url: ${QDRANT_URL:http://qdrant:6333}
-  collection: knowledge-base
+  ai:
+    vectorstore:
+      qdrant:
+        host: ${QDRANT_HOST:qdrant}
+        port: ${QDRANT_PORT:6334}
+        collection-name: ${QDRANT_COLLECTION:knowledge-base}
+        api-key: ${QDRANT_API_KEY:}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://ollama:11434}
+      chat:
+        model: ${OLLAMA_MODEL:llama3.1:8b}
+        options:
+          temperature: 0.2
+      embedding:
+        model: ${OLLAMA_EMBEDDING_MODEL:${OLLAMA_MODEL:llama3.1:8b}}
 
 server:
   port: 8080

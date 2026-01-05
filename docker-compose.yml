@@ -4,12 +4,6 @@ services:
       context: ./backend
       dockerfile: ./gateway/Dockerfile
     image: ai-knowledge/gateway:latest
-    networks:
-      - knowledge-net
-    depends_on:
-      - rag-service
-      - document-service
-      - user-service
     environment:
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
       - SERVICES_RAG_URI=http://rag-service:8080
@@ -20,33 +14,55 @@ services:
     ports:
       - "8080:8080"
     profiles: [dev, prod]
+    depends_on:
+      rag-service:
+        condition: service_healthy
+      document-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    networks:
+      - knowledge-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   rag-service:
     build:
       context: ./backend
       dockerfile: ./rag-service/Dockerfile
     image: ai-knowledge/rag-service:latest
-    networks:
-      - knowledge-net
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - OLLAMA_MODEL=llama3
+      - OLLAMA_MODEL=llama3.1:8b
+      - OLLAMA_EMBEDDING_MODEL=llama3.1:8b
       - QDRANT_URL=http://qdrant:6333
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
     secrets:
       - jwt_secret
-    depends_on:
-      - qdrant
-      - ollama
     profiles: [dev, prod, gpu]
+    depends_on:
+      qdrant:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    networks:
+      - knowledge-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   document-service:
     build:
       context: ./backend
       dockerfile: ./document-service/Dockerfile
     image: ai-knowledge/document-service:latest
-    networks:
-      - knowledge-net
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
@@ -56,40 +72,60 @@ services:
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
     secrets:
       - jwt_secret
-    depends_on:
-      - postgres
     profiles: [dev, prod]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - knowledge-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   user-service:
     build:
       context: ./backend
       dockerfile: ./user-service/Dockerfile
     image: ai-knowledge/user-service:latest
-    networks:
-      - knowledge-net
     environment:
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
     secrets:
       - jwt_secret
     profiles: [dev, prod]
+    networks:
+      - knowledge-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: ./Dockerfile
     image: ai-knowledge/frontend:latest
-    depends_on:
-      - gateway
     ports:
       - "4200:80"
+    profiles: [dev, prod]
+    depends_on:
+      gateway:
+        condition: service_healthy
     networks:
       - knowledge-net
-    profiles: [dev, prod]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   postgres:
     image: postgres:16-alpine
-    networks:
-      - knowledge-net
     environment:
       - POSTGRES_USER=knowledge
       - POSTGRES_PASSWORD=knowledge
@@ -99,6 +135,14 @@ services:
     ports:
       - "5432:5432"
     profiles: [dev, prod]
+    networks:
+      - knowledge-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-knowledge} -d ${POSTGRES_DB:-knowledge}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -106,31 +150,47 @@ services:
       - qdrant-data:/qdrant/storage
     ports:
       - "6333:6333"
+      - "6334:6334"
+    profiles: [dev, prod, gpu]
     networks:
       - knowledge-net
-    profiles: [dev, prod, gpu]
+# Pas trouvé de technique viable pour un healthcheck sur qdrant...
+#    healthcheck:
+#      test: ["CMD-SHELL", "[ \"$(cat /proc/1/comm 2>/dev/null)\" = \"qdrant\" ]"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#      start_period: 15s
 
+  # L’image ollama/ollama:latest ne contient aucun modèle par défaut. 
+  # Il faut en tirer un après lancement (ex. docker compose run --rm ollama ollama pull llama3.1:8b). 
+  # Le volume ollama:/root/.ollama conserve les modèles téléchargés entre les redémarrages.
   ollama:
     image: ollama/ollama:latest
     volumes:
-      - ollama:/root/.ollama
+      - ./.ollama:/root/.ollama
     ports:
       - "11434:11434"
+    profiles: [dev, gpu]
     networks:
       - knowledge-net
-    profiles: [dev, gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   toolbox:
     image: curlimages/curl:latest
     command: ["sleep", "infinity"]
+    profiles: [dev]
     networks:
       - knowledge-net
-    profiles: [dev]
 
 volumes:
   pgdata:
   qdrant-data:
-  ollama:
 
 networks:
   knowledge-net:
