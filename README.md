@@ -80,7 +80,7 @@ make build up
 
 ## API (exemples)
 - Auth: `POST /api/auth/login` -> `{ token, username }`
-- Docs: `GET /api/documents`, `POST /api/documents` (multipart: `file` PDF/EPUB/TXT ou `content`, `name`, `description`), `DELETE /api/documents/{id}` (purge Qdrant)
+- Docs: `GET /api/documents`, `POST /api/documents` (multipart: `file` PDF/EPUB/TXT ou `content`, `name`, `description`), `PUT /api/documents/{id}`, `DELETE /api/documents/{id}` (purge Qdrant)
 - RAG: `POST /api/rag/answer {query}` (Model Runner via Spring AI, utilise le contexte des documents ingérés), streaming SSE `/api/rag/query`
 
 ## Build locaux (sans Docker)

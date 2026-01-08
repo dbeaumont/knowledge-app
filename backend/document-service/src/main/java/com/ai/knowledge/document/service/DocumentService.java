@@ -3,6 +3,7 @@ package com.ai.knowledge.document.service;
 import com.ai.knowledge.document.api.DocumentMapper;
 import com.ai.knowledge.document.api.DocumentRequest;
 import com.ai.knowledge.document.api.DocumentResponse;
+import com.ai.knowledge.document.api.DocumentUpdateRequest;
 import com.ai.knowledge.document.domain.DocumentRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -50,8 +51,18 @@ public class DocumentService {
 
     @Transactional
     public DocumentResponse create(DocumentRequest request, Authentication authentication) {
+        return createWithOriginalFilename(request, authentication, null);
+    }
+
+    @Transactional
+    public DocumentResponse createWithOriginalFilename(DocumentRequest request,
+                                                       Authentication authentication,
+                                                       String originalFilename) {
         String ownerId = authentication.getName();
         var entity = mapper.toEntity(request, ownerId);
+        if (originalFilename != null && !originalFilename.isBlank()) {
+            entity.setOriginalFilename(originalFilename);
+        }
         var saved = repository.save(entity);
         // Ingestion HTTP vers rag-service déclenchée après commit pour libérer la connexion DB rapidement
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -87,7 +98,7 @@ public class DocumentService {
         }
 
         DocumentRequest request = new DocumentRequest(resolvedName, description, resolvedContent);
-        return create(request, authentication);
+        return createWithOriginalFilename(request, authentication, filename);
     }
 
     private String extractContentFromFile(MultipartFile file) {
@@ -121,6 +132,17 @@ public class DocumentService {
             doc.setStatus(status);
             repository.save(doc);
         });
+    }
+
+    @Transactional
+    public DocumentResponse update(UUID id, DocumentUpdateRequest request, Authentication authentication) {
+        String ownerId = authentication.getName();
+        var existing = repository.findByIdAndOwnerId(id, ownerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document introuvable."));
+        existing.setName(request.name());
+        existing.setDescription(request.description());
+        var saved = repository.save(existing);
+        return mapper.toResponse(saved);
     }
 
     @Transactional

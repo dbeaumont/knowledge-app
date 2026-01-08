@@ -6,6 +6,7 @@ export interface DocumentItem {
   id: string;
   name: string;
   description: string;
+  originalFilename?: string;
   status: string;
   createdAt: string;
 }
@@ -37,5 +38,9 @@ export class DocumentsService {
 
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`/api/documents/${id}`);
+  }
+
+  update(id: string, payload: { name: string; description?: string }): Observable<DocumentItem> {
+    return this.http.put<DocumentItem>(`/api/documents/${id}`, payload);
   }
 }

@@ -39,15 +39,36 @@ import { finalize } from 'rxjs/operators';
         <article *ngFor="let doc of documents" class="card">
           <div class="card-header">
             <h3>{{ doc.name }}</h3>
-            <button type="button" class="icon-button" (click)="remove(doc)" aria-label="Supprimer" title="Supprimer">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z"/>
-              </svg>
-            </button>
+            <div class="card-actions">
+              <button type="button" class="icon-button edit" (click)="openEdit(doc)" aria-label="Modifier" title="Modifier">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"/>
+                  <path d="M13 7l4 4"/>
+                </svg>
+              </button>
+              <button type="button" class="icon-button delete" (click)="remove(doc)" aria-label="Supprimer" title="Supprimer">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12"/>
+                  <path d="M18 6l-12 12"/>
+                </svg>
+              </button>
+            </div>
           </div>
+          <p *ngIf="doc.originalFilename" class="filename">Fichier: {{ doc.originalFilename }}</p>
           <p>{{ doc.description }}</p>
           <small>Status: {{ doc.status }} — {{ doc.createdAt | date:'short' }}</small>
         </article>
+      </div>
+
+      <div *ngIf="editingDoc" class="modal-backdrop" (click)="closeEdit()"></div>
+      <div *ngIf="editingDoc" class="modal" (click)="$event.stopPropagation()">
+        <h3>Modifier le document</h3>
+        <input [(ngModel)]="editName" name="editName" placeholder="Nom" required />
+        <textarea [(ngModel)]="editDescription" name="editDescription" placeholder="Description"></textarea>
+        <div class="modal-actions">
+          <button type="button" class="ghost" (click)="closeEdit()">Annuler</button>
+          <button type="button" (click)="saveEdit()" [disabled]="isSaving">Enregistrer</button>
+        </div>
       </div>
     </section>
   `,
@@ -63,8 +84,17 @@ import { finalize } from 'rxjs/operators';
     .list { display: grid; gap: 10px; }
     .card { padding: 10px; border-radius: 8px; background: #0f172a; }
     .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 10px; border: 1px solid #475569; background: transparent; color: #e2e8f0; }
-    .icon-button svg { width: 22px; height: 22px; fill: currentColor; }
+    .card-actions { display: inline-flex; align-items: center; gap: 6px; }
+    .filename { margin: 0; color: #cbd5f5; font-size: 0.9rem; }
+    .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 12px; border: none; background: transparent; color: #ef4444; }
+    .icon-button svg { width: 30px; height: 30px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .icon-button.edit { color: #38bdf8; }
+    .icon-button.delete { color: #ef4444; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); }
+    .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #0b1220; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; display: grid; gap: 10px; width: min(520px, 92vw); }
+    .modal h3 { margin: 0; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .ghost { background: transparent; border: 1px solid #475569; color: #e2e8f0; }
     .loading-row { display: inline-flex; align-items: center; gap: 8px; color: #94a3b8; font-size: 0.95rem; }
     .spinner { width: 14px; height: 14px; border: 2px solid #94a3b8; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -80,6 +110,9 @@ export class DocumentsPageComponent implements OnInit {
   dragOver = false;
    isSaving = false;
    error = '';
+  editingDoc: DocumentItem | null = null;
+  editName = '';
+  editDescription = '';
 
   constructor(private documentsService: DocumentsService) {}
 
@@ -118,6 +151,38 @@ export class DocumentsPageComponent implements OnInit {
 
   refresh() {
     this.documentsService.list().subscribe(docs => this.documents = docs);
+  }
+
+  openEdit(doc: DocumentItem) {
+    this.editingDoc = doc;
+    this.editName = doc.name;
+    this.editDescription = doc.description || '';
+  }
+
+  closeEdit() {
+    this.editingDoc = null;
+    this.editName = '';
+    this.editDescription = '';
+  }
+
+  saveEdit() {
+    if (!this.editingDoc || this.isSaving) {
+      return;
+    }
+    this.isSaving = true;
+    this.documentsService.update(this.editingDoc.id, {
+      name: this.editName,
+      description: this.editDescription
+    }).pipe(finalize(() => this.isSaving = false))
+      .subscribe({
+        next: () => {
+          this.closeEdit();
+          this.refresh();
+        },
+        error: () => {
+          this.error = 'Échec de la modification (auth ou réseau). Réessaie.';
+        }
+      });
   }
 
   remove(doc: DocumentItem) {

@@ -9,6 +9,7 @@ public interface DocumentMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "ownerId", source = "ownerId")
     @Mapping(target = "content", source = "request.content")
+    @Mapping(target = "originalFilename", ignore = true)
     @Mapping(target = "status", constant = "NEW")
     @Mapping(target = "createdAt", expression = "java(java.time.Instant.now())")
     DocumentEntity toEntity(DocumentRequest request, String ownerId);

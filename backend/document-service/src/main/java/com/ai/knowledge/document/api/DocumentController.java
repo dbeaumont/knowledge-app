@@ -1,6 +1,7 @@
 package com.ai.knowledge.document.api;
 
 import com.ai.knowledge.document.service.DocumentService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
@@ -37,13 +38,20 @@ public class DocumentController {
 
     @PostMapping("/{id}/status")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public void updateStatus(@PathVariable UUID id, @RequestParam String status) {
+    public void updateStatus(@PathVariable("id") UUID id, @RequestParam String status) {
         documentService.markIndexed(id, status);
+    }
+
+    @PutMapping("/{id}")
+    public DocumentResponse update(@PathVariable("id") UUID id,
+                                   @Valid @RequestBody DocumentUpdateRequest request,
+                                   Authentication authentication) {
+        return documentService.update(id, request, authentication);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable UUID id, Authentication authentication) {
+    public void delete(@PathVariable("id") UUID id, Authentication authentication) {
         documentService.delete(id, authentication);
     }
 }
