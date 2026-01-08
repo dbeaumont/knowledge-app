@@ -4,7 +4,7 @@ Ensemble microservices complet (Gateway, RAG, Documents, Users) + frontend Angul
 
 ## Stack
 - Java 21 / Spring Boot 3.3.4, Spring Security JWT, Spring Cloud 2023.0.x (Gateway), Spring AI (OpenAI starter)
-- RAG: Docker Model Runner (qwen2.5), Qdrant vector DB
+- RAG: Docker Model Runner (chat: qwen2.5, embeddings: mxbai-embed-large), Qdrant vector DB
 - Data: PostgreSQL (documents), JPA + MapStruct
 - Frontend: Angular 18, Material-ready, JWT interceptor
 - Tests: Testcontainers (PostgreSQL) prêts dans le POM
@@ -16,7 +16,7 @@ Note : la version la plus récente de Spring AI ne supporte que Spring Boot 3.3.
 - `frontend/` Angular 18 (Chat, Documents, Profil) + Dockerfile (Nginx)
 - `backend/pom.xml` parent multi-modules
 - `backend/gateway/` BFF Spring Cloud Gateway (JWT propagation, CORS)
-- `backend/rag-service/` pipeline RAG (placeholder streaming, hooks Model Runner/Qdrant)
+- `backend/rag-service/` pipeline RAG (chunking, embeddings, Qdrant)
 - `backend/document-service/` gestion docs PostgreSQL + MapStruct
 - `backend/user-service/` auth in-memory + issuance JWT
 - `backend/*/entrypoint.sh` charge le secret JWT depuis Docker secret
@@ -25,40 +25,20 @@ Note : la version la plus récente de Spring AI ne supporte que Spring Boot 3.3.
 ## Prérequis Mac M1
 - Docker Desktop (BuildKit activé) + ~12GB RAM pour modèles
 - Docker Desktop > Settings > AI > Docker Model Runner: Enable Docker Model Runner + Enable host-side TCP support
-- Modèle Docker pré-téléchargé via `docker model pull`
+- Modèles Docker pré-téléchargés via `docker model pull` (qwen2.5 + mxbai-embed-large)
 - JDK 21 + Maven 3.9 si build hors Docker
 - Node 20 si build frontend hors Docker
 
-## Backend MLX (macOS Apple Silicon)
-Pour optimiser Docker Model Runner sur Mac M1/M2, installe le backend MLX sur le host.
+## Backend MLX (macOS Apple Silicon, optionnel)
+Pour optimiser Docker Model Runner sur Mac M1/M2, installe MLX sur le host puis redémarre Model Runner.
 
 ```bash
-brew update && brew upgrade
-brew install python@3.13
-python3 -m venv ~/.venv-mlx
-source ~/.venv-mlx/bin/activate
-python3 -m pip install -U pip
-python3 -m pip install -U mlx mlx-lm
-docker desktop disable model-runner
-docker desktop enable model-runner
-
-brew update && brew upgrade
-brew install python@3.13
-brew install pipx
+brew install python@3.13 pipx
 pipx ensurepath
+# Fermez puis rouvrez votre terminal si besoin
 pipx install mlx-lm
 docker desktop disable model-runner
 docker desktop enable model-runner
-
-
-brew update && brew upgrade
-brew install pipx
-pipx ensurepath
-# Fermez puis rouvrez votre terminal
-pipx --version
-pipx reinstall mlx-lm
-mlx_lm --help
-brew services start mlx-lm
 ```
 
 Vérifie l'installation :
@@ -70,13 +50,18 @@ Tu dois voir `mlx: installed`.
 ## Démarrage rapide
 ```bash
 # 1) secret JWT
-cp docker/secrets/jwt_secret.example docker/secrets/jwt_secret
+cp backend/secrets/jwt_secret.example backend/secrets/jwt_secret
 
-# 2) pull models (chat + embeddings)
-make pull-model MODEL=qwen2.5
-make pull-model MODEL=mxbai-embed-large
+# 2) env (optionnel, pour override)
+make env
 
-# 3) build & run (profil dev)
+# 3) pull models (chat + embeddings)
+make pull-models
+
+# 4) (optionnel) warmup du modèle chat
+make run-models
+
+# 5) build & run (profil dev)
 make build up
 
 # Frontend : http://localhost:4200
@@ -105,10 +90,11 @@ cd frontend && npm install && npm run build
 ```
 
 ## Adaptations RAG/Vector
-- Config Model Runner: `rag-service/src/main/resources/application.yml` (`OPENAI_BASE_URL` par défaut `http://host.docker.internal:12434`, `OPENAI_MODEL`, `OPENAI_EMBEDDING_MODEL`, `OPENAI_API_KEY`)
-- Modèle de chat par défaut `qwen2.5` (à tirer avec `docker model pull qwen2.5`). Pour l'endpoint OpenAI du Model Runner, utiliser `ai/qwen2.5:latest` dans `OPENAI_MODEL`.
-- Modèle d'embedding: utiliser un modèle d'embedding (ex: `ai/mxbai-embed-large:latest`) dans `OPENAI_EMBEDDING_MODEL`.
-- Les documents envoyés avec un champ `content` sont transmis à `rag-service` pour être stockés en mémoire et utilisés dans le prompt. (Exemple minimal sans Qdrant).
+- Config Model Runner: `rag-service/src/main/resources/application.yml` (`OPENAI_BASE_URL` par défaut `http://host.docker.internal:12434`, `OPENAI_API_KEY`) + overrides via `.env` (voir `env.template`).
+- Modèle de chat: `OPENAI_MODEL=ai/qwen2.5:latest` dans `docker-compose.yml` (le pull se fait avec `docker model pull qwen2.5`).
+- Modèle d'embedding: `OPENAI_EMBEDDING_MODEL=ai/mxbai-embed-large:latest` (pull via `docker model pull mxbai-embed-large`).
+- Chunking d'ingestion: propriétés `rag.ingest.*` (env `RAG_INGEST_*`) pour éviter les inputs trop longs lors des embeddings.
+- Les documents envoyés avec un champ `content` sont transmis à `rag-service`, vectorisés puis stockés dans Qdrant.
 - `rag-service` utilise Spring AI (starter OpenAI) sur Spring Boot 3.3.x.
 
 ## Qualité & extensions
