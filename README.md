@@ -181,16 +181,16 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   http://localhost:8080/api/rag/answer | jq
 ```
 
-Uploader un PDF/EPUB :
+Uploader un fichier (PDF/EPUB/TXT) :
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
   -F "file=@/path/to/doc.pdf" \
-  -F "name=Mon PDF" \
-  -F "description=Extrait PDF" \
+  -F "name=Mon document" \
+  -F "description=Extrait" \
   http://localhost:8080/api/documents | jq
 ```
 
-Limite par defaut des uploads PDF: 20MB (env `GATEWAY_MAX_IN_MEMORY_SIZE`, `DOC_MAX_FILE_SIZE`, `DOC_MAX_REQUEST_SIZE`).
+Limite par defaut des uploads de fichiers: 20MB (env `GATEWAY_MAX_IN_MEMORY_SIZE`, `DOC_MAX_FILE_SIZE`, `DOC_MAX_REQUEST_SIZE`).
 
 ### Utilisation UI
 - Onglet “Documents” : saisissez Nom/Description, glissez/déposez un fichier texte, PDF ou EPUB (ou cliquez pour choisir), puis cliquez sur “Ajouter”. Les PDF/EPUB sont parsés côté document-service avant ingestion.
