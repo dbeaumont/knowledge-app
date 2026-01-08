@@ -36,19 +36,25 @@ services:
       dockerfile: ./rag-service/Dockerfile
     image: ai-knowledge/rag-service:latest
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - OLLAMA_MODEL=llama3.1:8b
-      - OLLAMA_EMBEDDING_MODEL=llama3.1:8b
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:12434}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-local}
+      - OPENAI_MODEL=ai/qwen2.5:latest
+      - OPENAI_EMBEDDING_MODEL=ai/mxbai-embed-large:latest
+      - RAG_INGEST_CHUNK_SIZE=${RAG_INGEST_CHUNK_SIZE:-256}
+      - RAG_INGEST_MIN_CHARS=${RAG_INGEST_MIN_CHARS:-200}
+      - RAG_INGEST_MIN_CHUNK_LENGTH=${RAG_INGEST_MIN_CHUNK_LENGTH:-5}
+      - RAG_INGEST_MAX_CHUNKS=${RAG_INGEST_MAX_CHUNKS:-1000}
+      - RAG_INGEST_KEEP_SEPARATOR=${RAG_INGEST_KEEP_SEPARATOR:-true}
       - QDRANT_URL=http://qdrant:6333
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
     secrets:
       - jwt_secret
-    profiles: [dev, prod, gpu]
+    profiles: [dev, prod]
+    models:
+      - qwen2_5
     depends_on:
       qdrant:
         condition: service_started
-      ollama:
-        condition: service_healthy
     networks:
       - knowledge-net
     healthcheck:
@@ -151,7 +157,7 @@ services:
     ports:
       - "6333:6333"
       - "6334:6334"
-    profiles: [dev, prod, gpu]
+    profiles: [dev, prod]
     networks:
       - knowledge-net
 # Pas trouvé de technique viable pour un healthcheck sur qdrant...
@@ -162,31 +168,16 @@ services:
 #      retries: 5
 #      start_period: 15s
 
-  # L’image ollama/ollama:latest ne contient aucun modèle par défaut. 
-  # Il faut en tirer un après lancement (ex. docker compose run --rm ollama ollama pull llama3.1:8b). 
-  # Le volume ollama:/root/.ollama conserve les modèles téléchargés entre les redémarrages.
-  ollama:
-    image: ollama/ollama:latest
-    volumes:
-      - ./.ollama:/root/.ollama
-    ports:
-      - "11434:11434"
-    profiles: [dev, gpu]
-    networks:
-      - knowledge-net
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
   toolbox:
     image: curlimages/curl:latest
     command: ["sleep", "infinity"]
     profiles: [dev]
     networks:
       - knowledge-net
+
+models:
+  qwen2_5:
+    model: qwen2.5
 
 volumes:
   pgdata:

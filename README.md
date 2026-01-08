@@ -1,14 +1,14 @@
 # AI Knowledge Workspace
 
-Ensemble microservices complet (Gateway, RAG, Documents, Users) + frontend Angular pour interroger un LLM local (Ollama), exécuter du RAG avec Qdrant, gérer des documents et des utilisateurs. Ciblé MacBook Pro M1 (ARM64), full offline.
+Ensemble microservices complet (Gateway, RAG, Documents, Users) + frontend Angular pour interroger un LLM local via Docker Model Runner, exécuter du RAG avec Qdrant, gérer des documents et des utilisateurs. Ciblé MacBook Pro M1 (ARM64), full offline.
 
 ## Stack
-- Java 21 / Spring Boot 3.3.4, Spring Security JWT, Spring Cloud 2023.0.x (Gateway), Spring AI (Ollama starter)
-- RAG: Ollama (llama3/mistral/qwen), Qdrant vector DB
+- Java 21 / Spring Boot 3.3.4, Spring Security JWT, Spring Cloud 2023.0.x (Gateway), Spring AI (OpenAI starter)
+- RAG: Docker Model Runner (qwen2.5), Qdrant vector DB
 - Data: PostgreSQL (documents), JPA + MapStruct
 - Frontend: Angular 18, Material-ready, JWT interceptor
 - Tests: Testcontainers (PostgreSQL) prêts dans le POM
-- Orchestration: Docker Compose (profils `dev`/`prod`/`gpu`), secrets Docker, volumes, réseaux privés
+- Orchestration: Docker Compose (profils `dev`/`prod`), secrets Docker, volumes, réseaux privés
   
 Note : la version la plus récente de Spring AI ne supporte que Spring Boot 3.3.x et Spring Cloud 2023.0.x
 
@@ -16,7 +16,7 @@ Note : la version la plus récente de Spring AI ne supporte que Spring Boot 3.3.
 - `frontend/` Angular 18 (Chat, Documents, Profil) + Dockerfile (Nginx)
 - `backend/pom.xml` parent multi-modules
 - `backend/gateway/` BFF Spring Cloud Gateway (JWT propagation, CORS)
-- `backend/rag-service/` pipeline RAG (placeholder streaming, hooks Ollama/Qdrant)
+- `backend/rag-service/` pipeline RAG (placeholder streaming, hooks Model Runner/Qdrant)
 - `backend/document-service/` gestion docs PostgreSQL + MapStruct
 - `backend/user-service/` auth in-memory + issuance JWT
 - `backend/*/entrypoint.sh` charge le secret JWT depuis Docker secret
@@ -24,17 +24,57 @@ Note : la version la plus récente de Spring AI ne supporte que Spring Boot 3.3.
 
 ## Prérequis Mac M1
 - Docker Desktop (BuildKit activé) + ~12GB RAM pour modèles
-- Ollama installé (local) si usage hors Docker, sinon conteneur `ollama/ollama` ARM64
+- Docker Desktop > Settings > AI > Docker Model Runner: Enable Docker Model Runner + Enable host-side TCP support
+- Modèle Docker pré-téléchargé via `docker model pull`
 - JDK 21 + Maven 3.9 si build hors Docker
 - Node 20 si build frontend hors Docker
+
+## Backend MLX (macOS Apple Silicon)
+Pour optimiser Docker Model Runner sur Mac M1/M2, installe le backend MLX sur le host.
+
+```bash
+brew update && brew upgrade
+brew install python@3.13
+python3 -m venv ~/.venv-mlx
+source ~/.venv-mlx/bin/activate
+python3 -m pip install -U pip
+python3 -m pip install -U mlx mlx-lm
+docker desktop disable model-runner
+docker desktop enable model-runner
+
+brew update && brew upgrade
+brew install python@3.13
+brew install pipx
+pipx ensurepath
+pipx install mlx-lm
+docker desktop disable model-runner
+docker desktop enable model-runner
+
+
+brew update && brew upgrade
+brew install pipx
+pipx ensurepath
+# Fermez puis rouvrez votre terminal
+pipx --version
+pipx reinstall mlx-lm
+mlx_lm --help
+brew services start mlx-lm
+```
+
+Vérifie l'installation :
+```bash
+docker model status
+```
+Tu dois voir `mlx: installed`.
 
 ## Démarrage rapide
 ```bash
 # 1) secret JWT
 cp docker/secrets/jwt_secret.example docker/secrets/jwt_secret
 
-# 2) pull model
-make pull-model MODEL=llama3.1:8b
+# 2) pull models (chat + embeddings)
+make pull-model MODEL=qwen2.5
+make pull-model MODEL=mxbai-embed-large
 
 # 3) build & run (profil dev)
 make build up
@@ -42,13 +82,12 @@ make build up
 # Frontend : http://localhost:4200
 # Gateway : http://localhost:8080
 # Qdrant : http://localhost:6333 (UI)
-# Ollama : http://localhost:11434
+# Model Runner : http://localhost:12434/v1
 ```
 
 ### Profils
-- `dev` : tout sauf GPU
+- `dev` : tous les services pour le développement local
 - `prod` : idem sans ports DB exposés (adapter compose selon besoin)
-- `gpu` : active `ollama`/`rag-service` pour usage GPU si dispo
 
 ### Auth par défaut
 - `admin/admin123` (roles ADMIN,USER)
@@ -57,7 +96,7 @@ make build up
 ## API (exemples)
 - Auth: `POST /api/auth/login` -> `{ token, username }`
 - Docs: `GET /api/documents`, `POST /api/documents {name,description,content}` (contient le texte à indexer)
-- RAG: `POST /api/rag/answer {query}` (Ollama via Spring AI, utilise le contexte des documents ingérés), streaming SSE `/api/rag/query`
+- RAG: `POST /api/rag/answer {query}` (Model Runner via Spring AI, utilise le contexte des documents ingérés), streaming SSE `/api/rag/query`
 
 ## Build locaux (sans Docker)
 ```bash
@@ -66,10 +105,11 @@ cd frontend && npm install && npm run build
 ```
 
 ## Adaptations RAG/Vector
-- Config Ollama: `rag-service/src/main/resources/application.yml` (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`)
-- Modèle par défaut `llama3.1:8b` (à tirer avec `ollama pull llama3.1:8b` ou override via `OLLAMA_MODEL`).
+- Config Model Runner: `rag-service/src/main/resources/application.yml` (`OPENAI_BASE_URL` par défaut `http://host.docker.internal:12434`, `OPENAI_MODEL`, `OPENAI_EMBEDDING_MODEL`, `OPENAI_API_KEY`)
+- Modèle de chat par défaut `qwen2.5` (à tirer avec `docker model pull qwen2.5`). Pour l'endpoint OpenAI du Model Runner, utiliser `ai/qwen2.5:latest` dans `OPENAI_MODEL`.
+- Modèle d'embedding: utiliser un modèle d'embedding (ex: `ai/mxbai-embed-large:latest`) dans `OPENAI_EMBEDDING_MODEL`.
 - Les documents envoyés avec un champ `content` sont transmis à `rag-service` pour être stockés en mémoire et utilisés dans le prompt. (Exemple minimal sans Qdrant).
-- `rag-service` utilise Spring AI (starter Ollama) sur Spring Boot 3.3.x.
+- `rag-service` utilise Spring AI (starter OpenAI) sur Spring Boot 3.3.x.
 
 ## Qualité & extensions
 - Hexa: séparer API/service/domain (ex: `document-service`)
@@ -89,7 +129,7 @@ flowchart LR
   subgraph Infra
     postgres[(PostgreSQL)]
     qdrant[(Qdrant)]
-    ollama[(Ollama)]
+    modelrunner[(Model Runner)]
   end
 
   gateway -->|REST/JWT| user-service
@@ -100,7 +140,7 @@ flowchart LR
 
   document-service --> postgres
   rag-service --> qdrant
-  rag-service --> ollama
+  rag-service --> modelrunner
 
   classDef svc fill:#0f172a,stroke:#1f2937,stroke-width:1px,color:#f8fafc;
   class frontend,gateway,rag-service,document-service,user-service svc;
@@ -116,7 +156,6 @@ flowchart LR
 - Remplacer le secret JWT et durée (`user-service` -> `JwtService`)
 - Ajouter persistance utilisateurs + rôles en DB
 - Ajout upload binaire + pipeline chunking/embedding dans `document-service`
-- Ajouter vérification GPU à `docker-compose.yml` (devices pour ollama)
 
 
 ## Tips
