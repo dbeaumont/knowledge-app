@@ -6,6 +6,7 @@ services:
     image: ai-knowledge/gateway:latest
     environment:
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
+      - GATEWAY_MAX_IN_MEMORY_SIZE=${GATEWAY_MAX_IN_MEMORY_SIZE:-20MB}
       - SERVICES_RAG_URI=http://rag-service:8080
       - SERVICES_DOCUMENT_URI=http://document-service:8080
       - SERVICES_USER_URI=http://user-service:8080
@@ -76,6 +77,8 @@ services:
       - POSTGRES_USER=knowledge
       - POSTGRES_PASSWORD=knowledge
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
+      - DOC_MAX_FILE_SIZE=${DOC_MAX_FILE_SIZE:-20MB}
+      - DOC_MAX_REQUEST_SIZE=${DOC_MAX_REQUEST_SIZE:-20MB}
     secrets:
       - jwt_secret
     profiles: [dev, prod]

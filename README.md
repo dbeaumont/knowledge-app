@@ -80,7 +80,7 @@ make build up
 
 ## API (exemples)
 - Auth: `POST /api/auth/login` -> `{ token, username }`
-- Docs: `GET /api/documents`, `POST /api/documents {name,description,content}` (contient le texte à indexer)
+- Docs: `GET /api/documents`, `POST /api/documents` (multipart: `file` PDF/EPUB/TXT ou `content`, `name`, `description`), `DELETE /api/documents/{id}` (purge Qdrant)
 - RAG: `POST /api/rag/answer {query}` (Model Runner via Spring AI, utilise le contexte des documents ingérés), streaming SSE `/api/rag/query`
 
 ## Build locaux (sans Docker)
@@ -161,15 +161,17 @@ Login depuis le réseau interne docker compose :
 docker compose exec toolbox curl -v -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' http://user-service:8080/api/auth/login
 ```
 
-Créer un document avec contenu (sera envoyé à rag-service pour ingestion) :
+Créer un document texte (sera envoyé à rag-service pour ingestion) :
 ```bash
 TOKEN=$(curl -s -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}' \
   http://localhost:8080/api/auth/login | jq -r .token)
 
-curl -v -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"name":"Mon doc","description":"Test","content":"Ceci est un texte à utiliser comme contexte."}' \
-  http://localhost:8080/api/documents
+curl -s -H "Authorization: Bearer $TOKEN" \
+  -F "name=Mon doc" \
+  -F "description=Test" \
+  -F "content=Ceci est un texte a utiliser comme contexte." \
+  http://localhost:8080/api/documents | jq
 ```
 
 Poser une question (le prompt inclura le contenu ingéré) :
@@ -179,6 +181,17 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   http://localhost:8080/api/rag/answer | jq
 ```
 
+Uploader un PDF/EPUB :
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  -F "file=@/path/to/doc.pdf" \
+  -F "name=Mon PDF" \
+  -F "description=Extrait PDF" \
+  http://localhost:8080/api/documents | jq
+```
+
+Limite par defaut des uploads PDF: 20MB (env `GATEWAY_MAX_IN_MEMORY_SIZE`, `DOC_MAX_FILE_SIZE`, `DOC_MAX_REQUEST_SIZE`).
+
 ### Utilisation UI
-- Onglet “Documents” : saisissez Nom/Description, glissez/déposez un fichier texte (ou cliquez pour choisir) ou collez du texte dans la zone prévue, puis cliquez sur “Ajouter”. Le contenu est envoyé et ingéré par le rag-service.
+- Onglet “Documents” : saisissez Nom/Description, glissez/déposez un fichier texte, PDF ou EPUB (ou cliquez pour choisir), puis cliquez sur “Ajouter”. Les PDF/EPUB sont parsés côté document-service avant ingestion.
 - Onglet “Chat” : posez une question, les réponses utilisent le contexte des documents ingérés.

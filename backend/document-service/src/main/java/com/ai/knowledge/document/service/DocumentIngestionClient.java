@@ -19,11 +19,14 @@ public class DocumentIngestionClient {
 
     private final RestTemplate restTemplate;
     private final String ingestionUrl;
+    private final String purgeUrl;
 
     public DocumentIngestionClient(RestTemplate restTemplate,
-                                   @Value("${ingestion.rag-url:http://rag-service:8080/api/rag/index}") String ingestionUrl) {
+                                   @Value("${ingestion.rag-url:http://rag-service:8080/api/rag/index}") String ingestionUrl,
+                                   @Value("${ingestion.rag-delete-url:http://rag-service:8080/api/rag/index}") String purgeUrl) {
         this.restTemplate = restTemplate;
         this.ingestionUrl = ingestionUrl;
+        this.purgeUrl = purgeUrl;
     }
 
     public void ingest(DocumentEntity document) {
@@ -37,6 +40,14 @@ public class DocumentIngestionClient {
             restTemplate.postForEntity(ingestionUrl, new HttpEntity<>(payload, headers), Void.class);
         } catch (Exception e) {
             log.warn("Unable to ingest document {} to rag-service: {}", document.getId(), e.getMessage());
+        }
+    }
+
+    public void purge(UUID documentId) {
+        try {
+            restTemplate.delete(purgeUrl + "/" + documentId);
+        } catch (Exception e) {
+            log.warn("Unable to purge document {} from rag-service: {}", documentId, e.getMessage());
         }
     }
 

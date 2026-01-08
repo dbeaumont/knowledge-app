@@ -18,7 +18,24 @@ export class DocumentsService {
     return this.http.get<DocumentItem[]>(`/api/documents`);
   }
 
-  create(payload: { name: string; description?: string; content?: string }): Observable<DocumentItem> {
-    return this.http.post<DocumentItem>(`/api/documents`, payload);
+  create(payload: { name?: string; description?: string; content?: string; file?: File }): Observable<DocumentItem> {
+    const formData = new FormData();
+    if (payload.file) {
+      formData.append('file', payload.file, payload.file.name);
+    }
+    if (payload.name) {
+      formData.append('name', payload.name);
+    }
+    if (payload.description) {
+      formData.append('description', payload.description);
+    }
+    if (payload.content) {
+      formData.append('content', payload.content);
+    }
+    return this.http.post<DocumentItem>(`/api/documents`, formData);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/documents/${id}`);
   }
 }

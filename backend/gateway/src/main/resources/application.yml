@@ -23,7 +23,7 @@ spring:
         jwt:
           jwk-set-uri: http://dummy
   codec:
-    max-in-memory-size: 10MB
+    max-in-memory-size: ${GATEWAY_MAX_IN_MEMORY_SIZE:20MB}
 
 services:
   rag:

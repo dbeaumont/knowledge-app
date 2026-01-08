@@ -3,6 +3,9 @@ package com.ai.knowledge.rag.service;
 import com.ai.knowledge.rag.api.IngestRequest;
 import com.ai.knowledge.rag.api.RagRequest;
 import com.ai.knowledge.rag.api.RagResponse;
+import io.qdrant.client.ConditionFactory;
+import io.qdrant.client.QdrantClient;
+import io.qdrant.client.grpc.Points;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
@@ -41,11 +44,18 @@ public class RagService {
 
     private final ChatClient chatClient;
     private final VectorStore vectorStore;
+    private final QdrantClient qdrantClient;
+    private final String qdrantCollection;
     private TokenTextSplitter textSplitter;
 
-    public RagService(ChatClient.Builder chatClientBuilder, VectorStore vectorStore) {
+    public RagService(ChatClient.Builder chatClientBuilder,
+                      VectorStore vectorStore,
+                      QdrantClient qdrantClient,
+                      @Value("${spring.ai.vectorstore.qdrant.collection-name:knowledge-base}") String qdrantCollection) {
         this.chatClient = chatClientBuilder.build();
         this.vectorStore = vectorStore;
+        this.qdrantClient = qdrantClient;
+        this.qdrantCollection = qdrantCollection;
     }
 
     @PostConstruct
@@ -94,6 +104,13 @@ public class RagService {
             chunks.get(i).getMetadata().put("chunkCount", chunks.size());
         }
         vectorStore.add(chunks);
+    }
+
+    public void purge(UUID documentId) throws Exception {
+        Points.Filter filter = Points.Filter.newBuilder()
+                .addMust(ConditionFactory.matchKeyword("id", documentId.toString()))
+                .build();
+        qdrantClient.deleteAsync(qdrantCollection, filter).get();
     }
 
     private String buildPrompt(String query) {

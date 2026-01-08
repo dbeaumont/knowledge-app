@@ -71,3 +71,8 @@ docker-compose.override.yml
 *.ear
 *.db
 *.sqlite
+
+# =========================
+# Sample files
+# =========================
+*.pdf

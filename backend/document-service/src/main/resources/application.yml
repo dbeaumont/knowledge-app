@@ -15,6 +15,10 @@ spring:
   jackson:
     serialization:
       indent_output: true
+  servlet:
+    multipart:
+      max-file-size: ${DOC_MAX_FILE_SIZE:20MB}
+      max-request-size: ${DOC_MAX_REQUEST_SIZE:20MB}
 
 server:
   port: 8080

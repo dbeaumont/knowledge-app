@@ -3,7 +3,7 @@
 Ce fichier résume la séquence d’appels entre les services pour qu’un document soit ingéré dans Qdrant puis utilisé lors d’une question.
 
 ## 1. Upload du document
-- **Client → Gateway → document-service** : `POST /api/documents` avec `{name, description, content}` et JWT.
+- **Client → Gateway → document-service** : `POST /api/documents` en multipart (`file` ou `content`, `name`, `description`) et JWT.
 - **document-service** : valide et persiste le document en base PostgreSQL, puis prépare la charge pour l’ingestion RAG (payload `{id, name, description, content}`).
 
 ```mermaid
@@ -13,7 +13,7 @@ sequenceDiagram
     participant DocumentService
     participant Postgres
 
-    Client->>Gateway: POST /api/documents (JWT, content)
+    Client->>Gateway: POST /api/documents (JWT, multipart file/content)
     Gateway->>DocumentService: POST /api/documents
     DocumentService->>Postgres: save document (name, description, content)
     Postgres-->>DocumentService: ack

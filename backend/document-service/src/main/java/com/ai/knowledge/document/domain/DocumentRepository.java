@@ -7,4 +7,6 @@ import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> {
     List<DocumentEntity> findByOwnerId(String ownerId);
+
+    java.util.Optional<DocumentEntity> findByIdAndOwnerId(UUID id, String ownerId);
 }
