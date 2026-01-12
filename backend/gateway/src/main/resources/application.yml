@@ -6,6 +6,7 @@ spring:
   cloud:
     gateway:
       default-filters:
+        - TokenRelay
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
       globalcors:
         corsConfigurations:
@@ -19,9 +20,17 @@ spring:
         response-timeout: 600s      # durée max d’attente de la réponse      
   security:
     oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: http://dummy
+      client:
+        provider:
+          keycloak:
+            issuer-uri: ${OIDC_ISSUER_URI:https://keycloak.local:8443/realms/knowledge}
+        registration:
+          keycloak:
+            client-id: ${OIDC_CLIENT_ID:gateway-bff}
+            client-secret: ${OIDC_CLIENT_SECRET:gateway-bff-secret}
+            authorization-grant-type: authorization_code
+            redirect-uri: ${OIDC_REDIRECT_URI:http://localhost:4200/login/oauth2/code/keycloak}
+            scope: openid,profile,email
   codec:
     max-in-memory-size: ${GATEWAY_MAX_IN_MEMORY_SIZE:20MB}
 
@@ -33,12 +42,9 @@ services:
   user:
     uri: http://user-service:8080
 
-security:
-  jwt:
-    secret: ${JWT_SECRET:0123456789abcdef0123456789abcdef}
-
 server:
   port: 8080
+  forward-headers-strategy: framework
 
 management:
   endpoints:

@@ -76,3 +76,9 @@ docker-compose.override.yml
 # Sample files
 # =========================
 *.pdf
+*.epub
+
+# =========================
+# Others
+# =========================
+.certs

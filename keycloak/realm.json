@@ -1,0 +1,101 @@
+{
+  "realm": "knowledge",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      { "name": "USER" },
+      { "name": "ADMIN" },
+      { "name": "INGESTOR" }
+    ]
+  },
+  "requiredActions": [
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "update_profile",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 10
+    },
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "providerId": "verify_profile",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 20
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "gateway-bff",
+      "name": "Gateway BFF",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "gateway-bff-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:4200/login/oauth2/code/keycloak"
+      ],
+      "webOrigins": [
+        "http://localhost:4200"
+      ]
+    },
+    {
+      "clientId": "document-service",
+      "name": "Document Service",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "document-service-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@local",
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ADMIN", "USER"]
+    },
+    {
+      "username": "user",
+      "enabled": true,
+      "email": "user@local",
+      "emailVerified": true,
+      "firstName": "Standard",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["USER"]
+    },
+    {
+      "username": "service-account-document-service",
+      "enabled": true,
+      "serviceAccountClientId": "document-service",
+      "realmRoles": ["INGESTOR"]
+    }
+  ]
+}

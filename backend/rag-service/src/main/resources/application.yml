@@ -21,6 +21,11 @@ spring:
       embedding:
         options:
           model: ${OPENAI_EMBEDDING_MODEL:${OPENAI_MODEL:qwen2.5}}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:https://keycloak.local:8443/realms/knowledge}
 
 rag:
   ingest:
@@ -32,10 +37,6 @@ rag:
 
 server:
   port: 8080
-
-security:
-  jwt:
-    secret: ${JWT_SECRET:0123456789abcdef0123456789abcdef}
 
 management:
   endpoints:

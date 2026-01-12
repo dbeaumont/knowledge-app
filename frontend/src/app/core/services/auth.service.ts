@@ -1,37 +1,59 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { tap } from 'rxjs/operators';
+import { catchError, tap } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private tokenKey = 'ai-workspace-token';
   username: string | null = null;
+  roles: string[] = [];
+  private profileLoaded = false;
 
   constructor(private http: HttpClient) {
-    this.username = localStorage.getItem('username');
   }
 
-  login(username: string, password: string) {
-    return this.http.post<{ token: string; username: string }>(`/api/auth/login`, { username, password }).pipe(
+  loadProfile() {
+    return this.http.get<{ username: string; roles: Array<{ authority: string }> | string[] }>(`/api/users/me`).pipe(
       tap(res => {
-        localStorage.setItem(this.tokenKey, res.token);
-        localStorage.setItem('username', res.username);
         this.username = res.username;
+        this.roles = this.normalizeRoles(res.roles);
+        this.profileLoaded = true;
+      }),
+      catchError(() => {
+        this.username = null;
+        this.roles = [];
+        this.profileLoaded = true;
+        return of(null);
       })
     );
   }
 
-  logout() {
-    localStorage.removeItem(this.tokenKey);
-    localStorage.removeItem('username');
-    this.username = null;
+  login() {
+    window.location.assign('/oauth2/authorization/keycloak');
   }
 
-  get token(): string | null {
-    return localStorage.getItem(this.tokenKey);
+  logout() {
+    window.location.assign('/logout');
   }
 
   isAuthenticated() {
-    return !!this.token;
+    return !!this.username;
+  }
+
+  isProfileReady() {
+    return this.profileLoaded;
+  }
+
+  private normalizeRoles(roles: Array<{ authority: string }> | string[] | null | undefined): string[] {
+    if (!roles) {
+      return [];
+    }
+    if (Array.isArray(roles) && roles.length > 0 && typeof roles[0] === 'string') {
+      return roles as string[];
+    }
+    if (Array.isArray(roles)) {
+      return (roles as Array<{ authority: string }>).map(role => role.authority);
+    }
+    return [];
   }
 }

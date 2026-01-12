@@ -15,6 +15,21 @@ spring:
   jackson:
     serialization:
       indent_output: true
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            issuer-uri: ${OIDC_ISSUER_URI:https://keycloak.local:8443/realms/knowledge}
+        registration:
+          rag-ingestor:
+            client-id: ${OIDC_RAG_CLIENT_ID:document-service}
+            client-secret: ${OIDC_RAG_CLIENT_SECRET:document-service-secret}
+            authorization-grant-type: client_credentials
+            provider: keycloak
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:https://keycloak.local:8443/realms/knowledge}
   servlet:
     multipart:
       max-file-size: ${DOC_MAX_FILE_SIZE:20MB}
@@ -23,9 +38,9 @@ spring:
 server:
   port: 8080
 
-security:
-  jwt:
-    secret: ${JWT_SECRET:0123456789abcdef0123456789abcdef}
+ingestion:
+  oauth2:
+    registration-id: rag-ingestor
 
 management:
   endpoints:
