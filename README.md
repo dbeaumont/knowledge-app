@@ -37,7 +37,7 @@ make all
 
 Option pas a pas
 ```bash
-make ca-root
+make ca-rootvscode, comment effectuer un merge
 # Importer la CA locale: docs/ca-import.md
 make env
 make hosts-keycloak
