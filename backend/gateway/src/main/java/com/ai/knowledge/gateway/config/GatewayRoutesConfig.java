@@ -21,9 +21,15 @@ public class GatewayRoutesConfig {
     @Bean
     public RouteLocator customRoutes(RouteLocatorBuilder builder) {
         return builder.routes()
-                .route("rag", r -> r.path("/api/rag/**").uri(ragUri))
-                .route("documents", r -> r.path("/api/documents/**").uri(documentUri))
-                .route("users", r -> r.path("/api/users/**", "/api/auth/**").uri(userUri))
+                .route("rag", r -> r.path("/api/rag/**")
+                        .filters(f -> f.tokenRelay())
+                        .uri(ragUri))
+                .route("documents", r -> r.path("/api/documents/**")
+                        .filters(f -> f.tokenRelay())
+                        .uri(documentUri))
+                .route("users", r -> r.path("/api/users/**")
+                        .filters(f -> f.tokenRelay())
+                        .uri(userUri))
                 .build();
     }
 }

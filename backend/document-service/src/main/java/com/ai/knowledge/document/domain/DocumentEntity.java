@@ -24,6 +24,9 @@ public class DocumentEntity {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    @Column(length = 1024)
+    private String originalFilename;
+
     @Column(nullable = false)
     private String status;
 
@@ -44,6 +47,9 @@ public class DocumentEntity {
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+
+    public String getOriginalFilename() { return originalFilename; }
+    public void setOriginalFilename(String originalFilename) { this.originalFilename = originalFilename; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

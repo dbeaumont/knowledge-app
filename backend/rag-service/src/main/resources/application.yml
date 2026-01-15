@@ -11,21 +11,32 @@ spring:
         port: ${QDRANT_PORT:6334}
         collection-name: ${QDRANT_COLLECTION:knowledge-base}
         api-key: ${QDRANT_API_KEY:}
-    ollama:
-      base-url: ${OLLAMA_BASE_URL:http://ollama:11434}
+    openai:
+      api-key: ${OPENAI_API_KEY:local}
+      base-url: ${OPENAI_BASE_URL:http://host.docker.internal:12434}
       chat:
-        model: ${OLLAMA_MODEL:llama3.1:8b}
         options:
+          model: ${OPENAI_MODEL:qwen2.5}
           temperature: 0.2
       embedding:
-        model: ${OLLAMA_EMBEDDING_MODEL:${OLLAMA_MODEL:llama3.1:8b}}
+        options:
+          model: ${OPENAI_EMBEDDING_MODEL:${OPENAI_MODEL:qwen2.5}}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:https://keycloak.local:8443/realms/knowledge}
+
+rag:
+  ingest:
+    chunk-size: ${RAG_INGEST_CHUNK_SIZE:256}
+    min-chars: ${RAG_INGEST_MIN_CHARS:200}
+    min-chunk-length: ${RAG_INGEST_MIN_CHUNK_LENGTH:5}
+    max-chunks: ${RAG_INGEST_MAX_CHUNKS:1000}
+    keep-separator: ${RAG_INGEST_KEEP_SEPARATOR:true}
 
 server:
   port: 8080
-
-security:
-  jwt:
-    secret: ${JWT_SECRET:0123456789abcdef0123456789abcdef}
 
 management:
   endpoints:

@@ -1,159 +1,74 @@
 # AI Knowledge Workspace
 
-Ensemble microservices complet (Gateway, RAG, Documents, Users) + frontend Angular pour interroger un LLM local (Ollama), exécuter du RAG avec Qdrant, gérer des documents et des utilisateurs. Ciblé MacBook Pro M1 (ARM64), full offline.
+Plateforme RAG full offline (Mac M1) : microservices Spring Boot + frontend Angular, LLM local via Docker Model Runner, Qdrant pour la recherche vectorielle.
 
-## Stack
-- Java 21 / Spring Boot 3.3.4, Spring Security JWT, Spring Cloud 2023.0.x (Gateway), Spring AI (Ollama starter)
-- RAG: Ollama (llama3/mistral/qwen), Qdrant vector DB
-- Data: PostgreSQL (documents), JPA + MapStruct
-- Frontend: Angular 18, Material-ready, JWT interceptor
-- Tests: Testcontainers (PostgreSQL) prêts dans le POM
-- Orchestration: Docker Compose (profils `dev`/`prod`/`gpu`), secrets Docker, volumes, réseaux privés
-  
-Note : la version la plus récente de Spring AI ne supporte que Spring Boot 3.3.x et Spring Cloud 2023.0.x
+## En bref
+- Java 21 / Spring Boot 3.3.x, Spring Cloud 2023.0.x, Spring AI (OpenAI starter)
+- RAG: Model Runner (qwen2.5, mxbai-embed-large) + Qdrant
+- Data: PostgreSQL, JPA + MapStruct
+- Frontend: Angular 18 (BFF OIDC via Gateway)
+- Orchestration: Docker Compose (`dev` / `prod`)
 
-## Arborescence
-- `frontend/` Angular 18 (Chat, Documents, Profil) + Dockerfile (Nginx)
-- `backend/pom.xml` parent multi-modules
-- `backend/gateway/` BFF Spring Cloud Gateway (JWT propagation, CORS)
-- `backend/rag-service/` pipeline RAG (placeholder streaming, hooks Ollama/Qdrant)
-- `backend/document-service/` gestion docs PostgreSQL + MapStruct
-- `backend/user-service/` auth in-memory + issuance JWT
-- `backend/*/entrypoint.sh` charge le secret JWT depuis Docker secret
-- `backend/secrets/jwt_secret.example` exemple de secret
+Note : Spring AI le plus recent supporte uniquement Spring Boot 3.3.x et Spring Cloud 2023.0.x.
 
-## Prérequis Mac M1
-- Docker Desktop (BuildKit activé) + ~12GB RAM pour modèles
-- Ollama installé (local) si usage hors Docker, sinon conteneur `ollama/ollama` ARM64
-- JDK 21 + Maven 3.9 si build hors Docker
-- Node 20 si build frontend hors Docker
+## Services
+- `frontend` : Angular + Nginx, reverse-proxy `/api`, `/oauth2`, `/login`, `/logout`
+- `gateway` : BFF Spring Cloud Gateway (OIDC, session, TokenRelay)
+- `keycloak` + `keycloak-certgen` : IdP OIDC + generation de cert
+- `document-service` : CRUD documents, extraction texte, PostgreSQL
+- `rag-service` : ingestion, embeddings, Qdrant, chat
+- `user-service` : profil utilisateur (`/api/users/me`)
+- `postgres`, `qdrant`, `modelrunner`, `toolbox`
 
-## Démarrage rapide
+## Prerequis (Mac M1)
+- Docker Desktop (+ Model Runner active et TCP host-side)
+- ~12GB RAM pour les modeles
+- Modeles precharges: `docker model pull qwen2.5` et `docker model pull mxbai-embed-large`
+- JDK 21 + Maven 3.9 (si build hors Docker)
+- Node 20 (si build frontend hors Docker)
+
+## Demarrage rapide
+Option automatique
 ```bash
-# 1) secret JWT
-cp docker/secrets/jwt_secret.example docker/secrets/jwt_secret
-
-# 2) pull model
-make pull-model MODEL=llama3.1:8b
-
-# 3) build & run (profil dev)
-make build up
-
-# Frontend : http://localhost:4200
-# Gateway : http://localhost:8080
-# Qdrant : http://localhost:6333 (UI)
-# Ollama : http://localhost:11434
+make ca-root
+# Importer la CA locale: docs/ca-import.md
+make all
 ```
 
-### Profils
-- `dev` : tout sauf GPU
-- `prod` : idem sans ports DB exposés (adapter compose selon besoin)
-- `gpu` : active `ollama`/`rag-service` pour usage GPU si dispo
+Option pas a pas
+```bash
+make ca-root
+# Importer la CA locale: docs/ca-import.md
+make env
+make hosts-keycloak
+make pull-models
+make run-models
+make build up
+```
 
-### Auth par défaut
+Endpoints
+```bash
+# Frontend : http://localhost:4200
+# Gateway : http://localhost:8080
+# Keycloak : https://keycloak.local:8443
+# Qdrant : http://localhost:6333
+# Model Runner : http://localhost:12434/v1
+```
+
+## Auth par defaut
 - `admin/admin123` (roles ADMIN,USER)
 - `user/user123` (role USER)
 
 ## API (exemples)
-- Auth: `POST /api/auth/login` -> `{ token, username }`
-- Docs: `GET /api/documents`, `POST /api/documents {name,description,content}` (contient le texte à indexer)
-- RAG: `POST /api/rag/answer {query}` (Ollama via Spring AI, utilise le contexte des documents ingérés), streaming SSE `/api/rag/query`
+- Docs: `GET /api/documents`, `POST /api/documents` (multipart `file` ou `content`)
+- RAG: `POST /api/rag/answer {query}`, streaming SSE `/api/rag/query`
 
 ## Build locaux (sans Docker)
 ```bash
-mvn -pl gateway,rag-service,document-service,user-service -DskipTests package
+cd backend && mvn clean package
 cd frontend && npm install && npm run build
 ```
 
-## Adaptations RAG/Vector
-- Config Ollama: `rag-service/src/main/resources/application.yml` (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`)
-- Modèle par défaut `llama3.1:8b` (à tirer avec `ollama pull llama3.1:8b` ou override via `OLLAMA_MODEL`).
-- Les documents envoyés avec un champ `content` sont transmis à `rag-service` pour être stockés en mémoire et utilisés dans le prompt. (Exemple minimal sans Qdrant).
-- `rag-service` utilise Spring AI (starter Ollama) sur Spring Boot 3.3.x.
-
-## Qualité & extensions
-- Hexa: séparer API/service/domain (ex: `document-service`)
-- OpenAPI UIs exposées via springdoc (`/swagger-ui.html`)
-- Logs JSON à ajouter via Logback JSON si besoin
-- Tests d’intégration: ajouter des `@Testcontainers` pour PostgreSQL/Qdrant
-
-## Nettoyage
-```bash
-docker compose down -v
-```
-
-## Diagramme des conteneurs (Docker Compose)
-```mermaid
-flowchart LR
-  user((Utilisateur))
-  subgraph Infra
-    postgres[(PostgreSQL)]
-    qdrant[(Qdrant)]
-    ollama[(Ollama)]
-  end
-
-  gateway -->|REST/JWT| user-service
-  gateway -->|REST| document-service
-  gateway -->|REST| rag-service
-  user --> frontend
-  frontend-->|Proxy /api| gateway
-
-  document-service --> postgres
-  rag-service --> qdrant
-  rag-service --> ollama
-
-  classDef svc fill:#0f172a,stroke:#1f2937,stroke-width:1px,color:#f8fafc;
-  class frontend,gateway,rag-service,document-service,user-service svc;
-
-  frontend{{Frontend Nginx/Angular proxy /api}}
-  gateway{{Gateway}}
-  rag-service{{RAG Service}}
-  document-service{{Document Service}}
-  user-service{{User Service}}
-```
-
-## Points de personnalisation
-- Remplacer le secret JWT et durée (`user-service` -> `JwtService`)
-- Ajouter persistance utilisateurs + rôles en DB
-- Ajout upload binaire + pipeline chunking/embedding dans `document-service`
-- Ajouter vérification GPU à `docker-compose.yml` (devices pour ollama)
-
-
-## Tips
-
-### Buildkit
-BuildKit est le moteur de build moderne de Docker. Il parallélise les étapes, met en cache plus finement (y compris sur plusieurs architectures), supporte les secrets et mounts temporaires pendant le build, et produit des images plus rapidement et de façon reproductible par rapport à l’ancien backend docker build. On l’active via DOCKER_BUILDKIT=1 ou dans la config Docker.
-
-### Test
-
-Login depuis le host, en passant par la gateway :
-```bash
-curl -v -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' http://localhost:8080/api/auth/login
-```
-
-Login depuis le réseau interne docker compose : 
-```bash
-docker compose exec toolbox curl -v -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' http://user-service:8080/api/auth/login
-```
-
-Créer un document avec contenu (sera envoyé à rag-service pour ingestion) :
-```bash
-TOKEN=$(curl -s -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' \
-  http://localhost:8080/api/auth/login | jq -r .token)
-
-curl -v -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"name":"Mon doc","description":"Test","content":"Ceci est un texte à utiliser comme contexte."}' \
-  http://localhost:8080/api/documents
-```
-
-Poser une question (le prompt inclura le contenu ingéré) :
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"query":"Que dit le document ?"}' \
-  http://localhost:8080/api/rag/answer | jq
-```
-
-### Utilisation UI
-- Onglet “Documents” : saisissez Nom/Description, glissez/déposez un fichier texte (ou cliquez pour choisir) ou collez du texte dans la zone prévue, puis cliquez sur “Ajouter”. Le contenu est envoyé et ingéré par le rag-service.
-- Onglet “Chat” : posez une question, les réponses utilisent le contexte des documents ingérés.
+## Docs utiles
+- `docs/ca-import.md` : import de la CA locale
+- `docs/rag-call-flow.md` : flux RAG (ingestion + query)
