@@ -2,9 +2,14 @@
 
 Ce fichier résume la séquence d’appels entre les services pour qu’un document soit ingéré dans Qdrant puis utilisé lors d’une question.
 
+## Legende Auth OIDC
+- **Authorization code (BFF)** : flow utilisateur via le gateway, JWT relayé vers les services.
+- **Client credentials** : flow service a service (service account).
+
 ## 1. Upload du document
 - **Client → Gateway → document-service** : `POST /api/documents` en multipart (`file` ou `content`, `name`, `description`) et JWT.
 - **document-service** : valide et persiste le document en base PostgreSQL, puis prépare la charge pour l’ingestion RAG (payload `{id, name, description, content}`).
+- **Auth OIDC** : authorization code (BFF) pour l’utilisateur, JWT relayé par le gateway.
 
 ```mermaid
 sequenceDiagram
@@ -22,15 +27,17 @@ sequenceDiagram
 ```
 
 ## 2. Indexation (ingestion RAG)
+- **Declencheur** : apres commit en base du document (upload termine), `document-service` lance l’ingestion.
 - **document-service → rag-service** : `POST /api/rag/index` avec le payload d’ingestion.
 - **rag-service** (`IngestionController.ingest`) : reçoit la requête, construit un `Document` Spring AI et l’ajoute au `VectorStore` (Qdrant).
 - **Qdrant** : stocke les embeddings générés via le modèle d’embedding OpenAI-compatible (`spring.ai.openai.embedding.options.model`).
+- **Auth OIDC** : client credentials (service account `document-service`).
 
 ```mermaid
 sequenceDiagram
     participant DocumentService
     participant RagService
-    note over DocumentService,RagService: /api/rag/index est en accès libre (permitAll)<br/>pour permettre l'ingestion interne
+    note over DocumentService,RagService: /api/rag/index est appele en OIDC client credentials<br/>par document-service (ingestion interne)
     participant ModelRunner as Model Runner (embedding)
     participant Qdrant
 
@@ -51,6 +58,7 @@ sequenceDiagram
   - Construction d’un prompt incluant le contexte trouvé.
 - Appel LLM via `ChatClient` OpenAI (`spring.ai.openai.chat.options.model`).
 - **Réponse** : le LLM répond en se basant sur le contexte injecté.
+- **Auth OIDC** : authorization code (BFF) pour l’utilisateur, JWT relayé par le gateway.
 
 ```mermaid
 sequenceDiagram
